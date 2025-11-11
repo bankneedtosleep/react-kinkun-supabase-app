@@ -1,62 +1,135 @@
 import React from "react";
-import food from "../assets/food.png";
-import Footer from "../components/Foodter";
-import { Link } from "react-router-dom";
+import food from "./../assets/food.png";
+import Footer from "./../components/Foodter";
+import { Link} from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "./../lib/supabaseClient";
+import Swal from "sweetalert2";
 
 export default function ShowAllKinkun() {
   const [kinkuns, setKinkuns] = useState([]);
 
   useEffect(() => {
     try {
-      // ดึงข้อมูลการกินทั้งหมดจาก Supabase
+      // โค้ดที่จะให้ทำงานเมื่อมี Effect เกิดขึ้นกับ Component
+      // ดึงข้อมูลการกินทั้งหมดจาก Supabase โดยสร้างเป็นฟังก์ชัน
       const fetchKinkuns = async () => {
+        // ตึงจาก Supabase
         const { data, error } = await supabase
           .from("kinkun_tb")
           .select("*")
           .order("created_at", { ascending: false });
-
+        // ดึงมาแล้ว ให้ตรวจสอบ error
         if (error) {
-          alert("เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง");
-          console.log("Fetch error: ", error);
+          // alert('เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง');
+          Swal.fire({
+            icon: "warning",
+            iconColor: "#E89E07",
+            title: "เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง",
+            showConfirmButton: true,
+            confirmButtonText: "ตกลง",
+            confirmButtonColor: "#3085d6",
+          });
+          console.log("Fetch error :", error);
         } else {
+          //เอาค่าที่ดึงมาไปเก็บไว้ที่ state: kinkuns
           setKinkuns(data);
         }
       };
+
+      // เรียกใช้ฟังก์ชันดึงข้อมูล
       fetchKinkuns();
     } catch (ex) {
-      alert("เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง");
-      console.log("Fetch error: ", ex);
+      // alert("เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง");
+      Swal.fire({
+        icon: "warning",
+        iconColor: "#E89E07",
+        title: "เกิดข้อผิดพลาดในการดึงข้อมูลการกิน กรุณาลองใหม่อีกครั้ง",
+        showConfirmButton: true,
+        confirmButtonText: "ตกลง",
+        confirmButtonColor: "#3085d6",
+      });
+      console.log("Fetch error :", ex);
     }
   }, []);
 
+  //สร้างฟัง์ชันลบข้อมูลออกจาก table และ storage บน Supabase
+  const handleDeleteClick = async (id, food_image_url) => {
+    // แสดงข้อความยืนยันการลบข้อมูล
+    const result = await Swal.fire({
+      icon: "question",
+      iconColor: "#E81A07",
+      title: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการกินนี้ ?",
+      showConfirmButton: true,
+      confirmButtonText: "ตกลง",
+      confirmButtonColor: "#E81A07",
+      showCancelButton: true,
+      cancelButtonText: "ยกเลิก",
+      cancelButtonColor: "#3085d6",
+    });
+
+    //ตรวจสอบ result ว่าผู้ใช้เลือกตกลง หรือยกเลิก
+    if (result) {
+      // ลบรูปออกจาก storage บน supabase ถ้ามี
+      if (food_image_url != "") {
+        //ตัดเอาแค่ชื่อรูป
+        const image_name = food_image_url.split("/").pop();
+
+        const { error } = await supabase.storage
+          .from("kinkun_bk")
+          .remove([image_name]);
+
+        if (error) {
+          alert("เกิดข้อผิดพลาดในการลบรูปภาพ กรุณาลองใหม่อีกครั้ง");
+          return;
+        }
+      }
+
+      // ลบข้อมูลออกจาก table บน supabase
+      const { error } = await supabase.from("kinkun_tb").delete().eq("id", id);
+
+      if (error) {
+        alert("เกิดข้อผิดพลาดในการลบข้อมูล กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+
+      alert("ลบข้อมูลการกินเรียบร้อยแล้ว");
+
+      //ลบข้อมูลออกจาก UI
+      setKinkuns(kinkuns.filter((kinkun) => kinkun.id !== id));
+      //หรือ window.location.reload()
+    }
+  };
+
   return (
     <div>
-      <div className="w-10/12 mx-auto border border-gray-300 p-6 shadow-md mt-20 rounded-lg">
+      <div className="w-10/12 mx-auto border-gray-300 p-6 shadow-md mt-20 rounded-lg">
         <h1 className="text-2xl font-bold text-center text-blue-700">
-          Kinkun App (Supabase)
+          Kinkun APP (Supabase)
         </h1>
-        <h1 className="text-2xl font-bold text-center text-blue-700">
-          ข้อมูลบันทึกการกิน
-        </h1>
-        <img src={food} alt="Food" className="block mx-auto w-20 mt-5" />
 
-        {/* ปุ่มเพิ่ม */}
-        <div className="my-8 flex justify-end">
+        <h1 className="text-2xl font-bold text-center text-blue-700">
+          ข้อมูลการกิน
+        </h1>
+
+        <img src={food} alt="กินกัน" className="block mx-auto w-20 mt-5" />
+
+        {/* ส่วนแสดงปุ่มเพิ่ม เพื่อเปิดหน้าจอ /addkinkun */}
+        <div className="my-8 flex justify-end text-center">
           <Link
             to="/add-kinkun"
-            className="bg-blue-700 p-3 rounded text-white hover:bg-blue-800"
+            className="bg-blue-700 p-3 rounded
+                                               hover:bg-blue-800 text-white"
           >
             เพิ่มการกิน
           </Link>
         </div>
 
-        {/* ตารางแสดงข้อมูลทั้งหมด */}
+        {/* ส่วนแสดงข้อมูลการกินทั้งหมดที่ดึงมาจาก Supabase โดยจะแสดงเป็นตาราง*/}
         <table className="w-full border border-gray-700 text-sm">
           <thead>
-            <tr className="bg-gray-300">
-              <th className="border border-gray-700 p-2">รูปภาพ</th>
+            <tr className="bg-gray-300 text-">
+              <th className="border border-gray-700 p-2">รูป</th>
               <th className="border border-gray-700 p-2">กินอะไร</th>
               <th className="border border-gray-700 p-2">กินที่ไหน</th>
               <th className="border border-gray-700 p-2">กินไปเท่าไหร่</th>
@@ -64,9 +137,10 @@ export default function ShowAllKinkun() {
               <th className="border border-gray-700 p-2">ACTION</th>
             </tr>
           </thead>
+
           <tbody>
             {kinkuns.map((kinkun) => (
-              <tr key={kinkun.id} className="hover:bg-gray-100 text-center">
+              <tr key={kinkun.id}>
                 <td className="border border-gray-700 p-2 text-center">
                   {kinkun.food_image_url == "" ||
                   kinkun.food_image_url == null ? (
@@ -86,24 +160,33 @@ export default function ShowAllKinkun() {
                   {kinkun.food_where}
                 </td>
                 <td className="border border-gray-700 p-2">
-                  {kinkun.food_howmuch}
+                  {kinkun.food_pay}
                 </td>
                 <td className="border border-gray-700 p-2">
                   {new Date(kinkun.created_at).toLocaleDateString("th-TH")}
                 </td>
-                <td className="border border-gray-700 p-2 text-center">
+                <td className="border border-gray-700 p-2">
                   <Link
-                    to={`/edit-kinkun/${kinkun.id}`}
-                    className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
+                    className="text-green-500 underline mx-2 cursor-pointer"
+                    to={"/edit-kinkun/" + kinkun.id}
                   >
-                    แก้ไข | ลบ
+                    แก้ไข |
                   </Link>
+                  <button
+                    className="text-red-500 underline mx-2 cursor-pointer"
+                    onClick={() =>
+                      handleDeleteClick(kinkun.id, kinkun.food_image_url)
+                    }
+                  >
+                    ลบ
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
       <Footer />
     </div>
   );
